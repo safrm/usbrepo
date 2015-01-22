@@ -1,0 +1,58 @@
+#!/bin/sh
+#usbrepo - http://safrm.net/projects/usbrepo
+#author: Miroslav Safr <miroslav.safr@gmail.com>
+VERSION=NA
+VERSION_DATE=NA
+
+#path to usb repo root folder
+REPO_ROOT=
+REPONAME=custom-repo
+PACKAGES="$*"
+
+error() { printf "\n\033[01;31mERROR: $*\033[00m\n" ; }
+fail() { error "$*" ; exit 1 ; }
+check_root_permissions() { [ "$(id -u)" != "0" ] && fail "You must run it with sudo or be root." ; }
+
+enable_usbrepo() 
+{ 
+    echo "deb file://$REPO_ROOT/$REPONAME ./ " > /etc/apt/sources.list.d/$REPONAME.list
+    #TODO disable others or use apt-get with reponame
+
+    #check and add key
+    GPGKEY=$(gpg --dry-run --import $REPO_ROOT/$REPONAME/$REPONAME.key 2>&1  | grep "gpg: key" | awk -F"[: ]" '{print $4 ; }')
+    apt-key list | grep -q $GPGKEY && apt-key add $REPO_ROOT/$REPONAME/$REPONAME.key || error "apt-key add $GPGKEY"
+    apt-get update -q > /dev/null || error "apt-get update"
+}
+
+disable_usbrepo() { 
+    rm -f /etc/apt/sources.list.d/$REPONAME.list
+
+    #remove key
+    GPGKEY=$(gpg --dry-run --import $REPO_ROOT/$REPONAME/$REPONAME.key 2>&1  | grep "gpg: key" | awk -F"[: ]" '{print $4 ; }')
+    [ -n "$GPGKEY" ] && apt-key del $GPGKEY || error "key not found"
+    apt-get update -q > /dev/null || error "apt-get update"
+}
+
+check_root_permissions
+#TODO get usb mount point REPO_ROOT automatically or from commandline
+[ -d "$REPO_ROOT" ] || fail "REPO_ROOT has to be set and be mounted ($REPO_ROOT)"
+
+#UC1 install on target packages or upgrade without parameters
+enable_usbrepo
+#TODO sign switch
+# --allow-unauthenticated
+
+if [ -z "$PACKAGES" ]; then
+    apt-get upgrade -y
+else
+    apt-get install -y $PACKAGES
+    if [ $? -ne 0 ]; then
+        apt-get install -f
+    fi
+fi
+
+#UC2 update repo from other source
+#wget -nH -r -A deb http://
+#update repo
+
+
