@@ -29,7 +29,7 @@ disable_usbrepo() {
 
     #remove key
     GPGKEY=$(gpg --dry-run --import $REPO_ROOT/$REPONAME/$REPONAME.key 2>&1  | grep "gpg: key" | awk -F"[: ]" '{print $4 ; }')
-    [ -n "$GPGKEY" ] && apt-key del $GPGKEY || error "key not found"
+    [ -n "$GPGKEY" ] && apt-key del $GPGKEY || error "key not found"
     apt-get update -q > /dev/null || error "apt-get update"
 }
 
